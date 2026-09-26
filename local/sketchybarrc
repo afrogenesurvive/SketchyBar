@@ -1,0 +1,241 @@
+# This is a demo config to showcase some of the most important commands.
+# It is meant to be changed and configured, as it is intentionally kept sparse.
+# For a (much) more advanced configuration example see my dotfiles:
+# https://github.com/FelixKratz/dotfiles
+
+# Hotload the config on save (this file is watched via FSEvents).
+sketchybar --hotload true
+
+PLUGIN_DIR="$CONFIG_DIR/plugins"
+
+##### Bar Appearance #####
+# Configuring the general appearance of the bar.
+# These are only some of the options available. For all options see:
+# https://felixkratz.github.io/SketchyBar/config/bar
+# If you are looking for other colors, see the color picker:
+# https://felixkratz.github.io/SketchyBar/config/tricks#color-picker
+
+# topmost=on raises the bar to kCGStatusWindowLevel (25), above the native menu bar
+# (kCGMainMenuWindowLevel 24). Without it the bar sits at kCGBackstopMenuLevel (-20),
+# the native menu bar covers the same strip and swallows every click.
+#
+# show_in_fullscreen=on is REQUIRED on this machine or the bar vanishes in
+# fullscreen spaces. src/bar_manager.c:956 computes
+#   bar->shown = SLSSpaceGetType(dsid) != 4 || show_in_fullscreen
+# so with the default (off) and a fullscreen space (type 4) bar->shown is false,
+# bar_draws_item() returns false for every item, and each item window is parked
+# at g_nirvana (-9999,-9999) -- invisible AND unclickable. Almost all of this
+# machine's 15 spaces are fullscreen, so "nothing clickable" is this bug.
+# The flag is only re-read when `shown` is recomputed, i.e. in
+# bar_manager_handle_space_change(), so after editing this line run:
+#   sketchybar --trigger space_change        (or just switch spaces)
+sketchybar --bar position=top topmost=on height=40 blur_radius=30 color=0x40000000 show_in_fullscreen=on
+
+##### Changing Defaults #####
+# We now change some default values, which are applied to all further items.
+# For a full list of all available item properties see:
+# https://felixkratz.github.io/SketchyBar/config/items
+
+default=(
+  padding_left=5
+  padding_right=5
+  icon.font="Hack Nerd Font:Bold:17.0"
+  label.font="Hack Nerd Font:Bold:14.0"
+  icon.color=0xffffffff
+  label.color=0xffffffff
+  icon.padding_left=4
+  icon.padding_right=4
+  label.padding_left=4
+  label.padding_right=4
+)
+sketchybar --default "${default[@]}"
+
+##### Adding AeroSpace Workspace Indicators #####
+# One item per AeroSpace workspace, driven by the custom `aerospace_workspace_change`
+# event that ~/.aerospace.toml fires from its `exec-on-workspace-change` callback:
+#   exec-on-workspace-change = ['/bin/bash', '-c',
+#       'sketchybar --trigger aerospace_workspace_change FOCUSED_WORKSPACE=$AEROSPACE_FOCUSED_WORKSPACE'
+#   ]
+# See https://nikitabobko.github.io/AeroSpace/goodies#show-aerospace-workspaces-in-sketchybar
+#
+# These used to be Mission Control `--add space` items bound with `space="$sid"`, and were
+# deliberately not click bound (the old click_script called yabai, which is not installed).
+# AeroSpace does not drive native Spaces - it emulates workspaces by parking unfocused
+# windows in the "window attic" (bottom right corner of the screen) - so a Mission Control
+# space item can never track the focused AeroSpace workspace. Plain items subscribed to the
+# custom event are the supported integration. The nirvana parking of space.9/space.10 went
+# away with the Mission Control binding: these are ordinary items now, not bar spaces.
+#
+# Only workspaces 1-10 get indicators. AeroSpace also has A-Z; add them to SPACE_ICONS if
+# you want them on the bar.
+
+sketchybar --add event aerospace_workspace_change
+
+SPACE_ICONS=("1" "2" "3" "4" "5" "6" "7" "8" "9" "10")
+for i in "${!SPACE_ICONS[@]}"
+do
+  sid="$(($i+1))"
+  space=(
+    icon="${SPACE_ICONS[i]}"
+    icon.padding_left=7
+    icon.padding_right=7
+    background.color=0x40ffffff
+    background.corner_radius=5
+    background.height=25
+    background.drawing=off
+    label.drawing=off
+    click_script="aerospace workspace $sid"
+    script="$PLUGIN_DIR/aerospace.sh $sid"
+  )
+  sketchybar --add item space."$sid" left \
+    --subscribe space."$sid" aerospace_workspace_change \
+    --set space."$sid" "${space[@]}"
+done
+
+##### Adding Left Items #####
+# We add some regular items to the left side of the bar, where
+# only the properties deviating from the current defaults need to be set
+
+sketchybar --add item chevron left \
+           --set chevron icon= label.drawing=off \
+           --add item front_app left \
+           --set front_app icon.drawing=off script="$PLUGIN_DIR/front_app.sh" \
+           --subscribe front_app front_app_switched
+
+##### Adding Right Items #####
+# In the same way as the left items we can add items to the right side.
+# Additional position (e.g. center) are available, see:
+# https://felixkratz.github.io/SketchyBar/config/items#adding-items-to-sketchybar
+
+# Some items refresh on a fixed cycle, e.g. the clock runs its script once
+# every 10s. Other items respond to events they subscribe to, e.g. the
+# volume.sh script is only executed once an actual change in system audio
+# volume is registered. More info about the event system can be found here:
+# https://felixkratz.github.io/SketchyBar/config/events
+
+sketchybar --add item clock right \
+           --set clock update_freq=10 icon=  script="$PLUGIN_DIR/clock.sh" \
+           --add item volume right \
+           --set volume script="$PLUGIN_DIR/volume.sh" \
+           --subscribe volume volume_change \
+           --add item battery right \
+           --set battery update_freq=120 script="$PLUGIN_DIR/battery.sh" \
+           --subscribe battery system_woke power_source_change
+
+##### Native clones of the remaining macOS menu bar items #####
+# The real menu bar holds a twelve-window "Control Centre" cluster (WiFi,
+# Battery, Bluetooth, Sound, Clock, the Control Center icon) plus three Stats
+# widgets (CPU, Disk, RAM). This bar is `topmost=on` and 40pt tall, so it
+# covers the 33pt native bar and hides all of them; these items restore them.
+#
+# These are deliberately NOT aliases. `--add alias "Control Centre,WiFi"`
+# mirrors the real item as a captured image, which needs Screen Recording
+# permission for the sketchybar binary, and an alias does not forward clicks.
+#
+# On wifi_change: $INFO is empty on this machine. The SSID is gated behind
+# Location Services -- CoreWLAN returns nil for the ssidData that src/wifi.m
+# reads, and `ipconfig getsummary en0` prints "<redacted>" -- so wifi.sh
+# derives state from `networksetup -getairportpower` and `ifconfig` instead,
+# and only shows the SSID if that permission is ever granted to sketchybar.
+#
+# nowplaying.sh is deliberately not wired up: the fork's media_change event
+# relies on the private MediaRemote framework, whose callback never fires on
+# macOS 26 (verified by calling MRMediaRemoteGetNowPlayingInfo directly).
+
+sketchybar --add item wifi right \
+           --set wifi script="$PLUGIN_DIR/wifi.sh" \
+                     click_script="$PLUGIN_DIR/wifi_toggle.sh" \
+                     update_freq=30 label.drawing=off \
+           --subscribe wifi wifi_change \
+           --add item bluetooth right \
+           --set bluetooth script="$PLUGIN_DIR/bluetooth.sh" \
+                     update_freq=15 label.drawing=off \
+           --add item cpu right \
+           --set cpu script="$PLUGIN_DIR/cpu.sh" update_freq=2 \
+           --add item ram right \
+           --set ram script="$PLUGIN_DIR/ram.sh" update_freq=5 \
+           --add item disk right \
+           --set disk script="$PLUGIN_DIR/disk.sh" update_freq=60
+
+##### Native menu-bar strip: the reach toggle #####
+# The bar is topmost=on and 40pt tall, so it covers the 33pt native strip, and
+# sketchybar never passes a click through to what is underneath it. That makes
+# every real status item (Tailscale, Stats, Control Centre, Apple's own)
+# invisible AND unclickable -- i.e. the functionality that existed before the
+# bar did. The only fix is geometry: move the bar down.
+#
+# `native_bar` cycles the bar's y_offset through three states when clicked (or
+# via alt-ctrl-n, defined in ~/.aerospace.toml):
+#     0  bar covers the strip            (default look)
+#    14  sliver -- the top 14pt of the native items is exposed and clickable
+#    33  strip fully clear
+#
+# A 14pt sliver is enough because a status item's window spans the whole strip,
+# so a click anywhere inside it activates the item. Measured: with the bar out
+# of the way, a click at (927,5) opened Tailscale's popover (layer 101).
+#
+# `script=... status` re-syncs the label after a reload. The y_offset itself
+# survives a reload (this file never sets it), but the label would go stale.
+#
+# Aliases are deliberately NOT used: `--add alias` mirrors a native item as a
+# captured image, needs Screen Recording (not granted here), and cannot forward
+# a click -- there is no CGEventPost anywhere in sketchybar.
+sketchybar --add item native_bar right \
+           --set native_bar script="$PLUGIN_DIR/native_bar_toggle.sh status" \
+                     click_script="$PLUGIN_DIR/native_bar_toggle.sh" \
+                     icon.drawing=off \
+                     label="menu" \
+                     background.drawing=on \
+                     background.height=25 \
+                     background.corner_radius=5 \
+                     background.color=0x40ffffff
+
+##### Right-side layout #####
+# `--add ... right` appends, and re-adding an existing item leaves it where it
+# is, so the layout has to be enforced explicitly. Do NOT use --reorder here:
+# bar_manager_sort() overwrites slots in place and silently DROPS any item the
+# list omits. --move is a safe permutation and is idempotent, so this block can
+# run on every reload.
+#
+# For `right` items the list order runs RIGHT to LEFT: the first item in the
+# list is placed rightmost. Measured on this bar -- list order
+# wifi..clock rendered wifi at x=1421 and clock at x=929 -- which is why the
+# stock demo (clock added first) puts the clock rightmost. So the list order
+# must be the REVERSE of the wanted screen order.
+#
+# Target screen order, left to right:
+#   native_bar wifi battery bluetooth volume cpu ram disk clock
+# therefore the list order used below is: clock ... wifi native_bar
+sketchybar --move clock     before wifi \
+           --move disk      after  clock \
+           --move ram       after  disk \
+           --move cpu       after  ram \
+           --move volume    after  cpu \
+           --move bluetooth after  volume \
+           --move battery   after  bluetooth \
+           --move native_bar after wifi
+
+##### Click actions #####
+# Nothing in the bar was click bound, which is why it felt entirely inert.
+# Clicks DO reach items (verified by clicking bluetooth/cpu/front_app with a
+# temporary probe handler - all three fired), so this was missing configuration,
+# not a delivery fault. Only `wifi` had an action; its toggle stays with its
+# definition above.
+#
+# The pane identifiers are read from each extension's Info.plist under
+# /System/Library/ExtensionKit/Extensions/ rather than guessed:
+#   Sound.appex             -> com.apple.Sound-Settings.extension
+#   PowerPreferences.appex  -> com.apple.Battery-Settings.extension
+#   Bluetooth.appex         -> com.apple.BluetoothSettings
+#
+# Gathered in one place so the whole click map is readable at a glance.
+sketchybar --set volume    click_script="open 'x-apple.systempreferences:com.apple.Sound-Settings.extension'" \
+           --set battery   click_script="open 'x-apple.systempreferences:com.apple.Battery-Settings.extension'" \
+           --set bluetooth click_script="open 'x-apple.systempreferences:com.apple.BluetoothSettings'" \
+           --set cpu       click_script="open -a 'Activity Monitor'" \
+           --set ram       click_script="open -a 'Activity Monitor'" \
+           --set disk      click_script="open -a 'Activity Monitor'" \
+           --set clock     click_script="open -a Calendar"
+
+##### Force all scripts to run the first time (never do this in a script) #####
+sketchybar --update
