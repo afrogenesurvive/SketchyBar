@@ -138,7 +138,7 @@ gaps.outer.right =      0
     alt-ctrl-f = 'fullscreen'
 
     # Cycle the sketchybar offset so the native macOS menu-bar strip becomes
-    # reachable: 0 (bar covers it) -> 14 (sliver) -> 33 (fully clear) -> 0.
+    # reachable: 0 (bar covers it) -> 32 (sliver) -> 33 (fully clear) -> 0.
     # Keyboard equivalent of clicking the `native_bar` item.
     # See: https://nikitabobko.github.io/AeroSpace/commands#exec-and-forget
     alt-ctrl-n = 'exec-and-forget $HOME/.config/sketchybar/plugins/native_bar_toggle.sh'

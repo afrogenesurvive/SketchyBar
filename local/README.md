@@ -26,9 +26,16 @@ fork, which is what this directory records.
   items, which cannot track AeroSpace workspaces (AeroSpace emulates workspaces by parking
   windows in an off-screen "attic"; it does not drive native Spaces).
 - **`native_bar_toggle.sh` + the `native_bar` item** — cycles the bar's `y_offset` through
-  `0 → 14 → 33` so the native macOS menu-bar strip can actually be reached. The bar is
+  `0 → 32 → 33` so the native macOS menu-bar strip can actually be reached. The bar is
   `topmost=on` and 40pt tall and sketchybar never passes a click through, so while it
-  covers the strip every real status item is invisible *and* unclickable.
+  covers the strip every real status item is invisible *and* unclickable. The sliver is
+  32 of the 33pt strip: 33 would drop the bar a full strip-height down and it reads as
+  detached from the menu bar.
+- **`edit_config.sh` + the `chevron` item** — one-click access to this config. Left click opens
+  the live `sketchybarrc` in an editor (hotload applies the change about a second after saving);
+  right click reveals `~/.config/sketchybar` in Finder. `chevron` was the demo's leftover and
+  was never bound. The bar's *background* cannot be bound — sketchybar only hit-tests its items,
+  so the action has to hang off an item.
 - **Click actions** for volume / battery / bluetooth / cpu / ram / disk / clock, with the
   Settings pane identifiers read from each extension's `Info.plist` rather than guessed.
 - **Native clones** of the status items (`wifi`, `bluetooth`, `cpu`, `ram`, `disk`) because

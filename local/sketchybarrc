@@ -167,12 +167,13 @@ sketchybar --add item wifi right \
 # `native_bar` cycles the bar's y_offset through three states when clicked (or
 # via alt-ctrl-n, defined in ~/.aerospace.toml):
 #     0  bar covers the strip            (default look)
-#    14  sliver -- the top 14pt of the native items is exposed and clickable
+#    32  sliver -- all but the bottom 1pt of the 33pt strip is exposed
 #    33  strip fully clear
 #
-# A 14pt sliver is enough because a status item's window spans the whole strip,
-# so a click anywhere inside it activates the item. Measured: with the bar out
-# of the way, a click at (927,5) opened Tailscale's popover (layer 101).
+# The sliver is enough because a status item's window spans the whole strip, so
+# a click anywhere inside it activates the item. Measured: at offset 14 and 33 a
+# click at (927,5) opened a native status item popover at layer 101; at 0 it
+# opened nothing.
 #
 # `script=... status` re-syncs the label after a reload. The y_offset itself
 # survives a reload (this file never sets it), but the label would go stale.
@@ -236,6 +237,20 @@ sketchybar --set volume    click_script="open 'x-apple.systempreferences:com.app
            --set ram       click_script="open -a 'Activity Monitor'" \
            --set disk      click_script="open -a 'Activity Monitor'" \
            --set clock     click_script="open -a Calendar"
+
+##### Editing the config from the bar #####
+# `chevron` was the demo's leftover and was never bound, so it is the natural
+# "click the bar itself" target. Left click opens the LIVE config in an editor;
+# right click reveals the whole config directory in Finder.
+#
+# The bar's *background* cannot be bound: sketchybar only hit-tests its items,
+# so the action has to hang off an item. Hotload is on (`--hotload true` at the
+# top of this file), so saving in the editor applies the change about a second
+# later -- no reload command needed.
+#
+# NOTE: this opens ~/.config/sketchybar/sketchybarrc, not the repo copy. The
+# repo's sketchybarrc is the pristine upstream demo and is not read at runtime.
+sketchybar --set chevron click_script="$PLUGIN_DIR/edit_config.sh"
 
 ##### Force all scripts to run the first time (never do this in a script) #####
 sketchybar --update

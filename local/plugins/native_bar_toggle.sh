@@ -10,13 +10,13 @@
 # no CGEventPost anywhere in sketchybar, so an alias cannot forward a click).
 #
 #   0  -> covered (the default look)
-#   14 -> a sliver: the top 14pt of the native items is exposed
-#   33 -> the strip is fully clear
+#   32 -> a sliver: all but the bottom 1pt of the 33pt native strip is exposed
+#   33 -> strip fully clear (the bar sits entirely below it)
 #
 # Why a sliver is enough: a status item's window spans the whole strip, so a
 # click anywhere inside it activates the item. Verified on this machine -- with
-# the bar out of the way, a click at (927,5) opened Tailscale's popover
-# (layer 101 Tailscale x=906 y=34).
+# the bar at 14 or 33, a click at (927,5) opened a native status item popover at
+# layer 101; with the bar at 0 the same click opened nothing.
 #
 # The current offset is read back from the bar rather than remembered in a
 # state file, so the cycle stays correct across reloads and restarts.
@@ -28,7 +28,10 @@
 
 SB="$HOME/.local/bin/sketchybar"   # absolute: plugins inherit the bar process's PATH
 STRIP=33                           # native menu-bar strip height on this machine
-SLIVER=14                          # enough of the top of the native items to click
+SLIVER=32                          # near-full reveal. 33 would drop the bar a
+                                   # full strip-height down and it reads as
+                                   # detached; 32 keeps it visually anchored to
+                                   # the bottom edge of the native strip.
 
 read_offset() {
   "$SB" --query bar | sed -n 's/.*"y_offset": *\([0-9-]*\).*/\1/p'
@@ -39,7 +42,7 @@ paint() {
   # have silently landed as U+FFFD before.
   case "$1" in
     0)  "$SB" --set native_bar label="menu"    background.color=0x40ffffff ;;
-    14) "$SB" --set native_bar label="menu 14" background.color=0x66ff9f0a ;;
+    32) "$SB" --set native_bar label="menu 32" background.color=0x66ff9f0a ;;
     33) "$SB" --set native_bar label="menu 33" background.color=0x66ff453a ;;
   esac
 }
@@ -55,7 +58,7 @@ fi
 
 case "$cur" in
   0)  next=$SLIVER ;;
-  14) next=$STRIP  ;;
+  32) next=$STRIP  ;;
   *)  next=0       ;;
 esac
 
