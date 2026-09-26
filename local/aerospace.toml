@@ -89,10 +89,26 @@ gaps.outer.bottom =     0
 # without this every tiled window starts at y=0 and the bar covers its top
 # 40pt (browser tab strips, title bars). AeroSpace's own `fullscreen` command
 # keeps outer gaps -- only `--no-outer-gaps` drops them -- so this covers
-# fullscreen windows too. 40 matches the bar's height, and raising the bar's
-# y_offset (see plugins/native_bar_toggle.sh) only widens the gap, never
-# overlaps. See: https://nikitabobko.github.io/AeroSpace/guide#gaps
-gaps.outer.top =        40
+# fullscreen windows too. Raising the bar's y_offset (see
+# plugins/native_bar_toggle.sh) only widens the gap, never overlaps.
+# See: https://nikitabobko.github.io/AeroSpace/guide#gaps
+#
+# The gap is added to `NSScreen.visibleFrame`, NOT to the screen edge
+# (Sources/AppBundle/model/MonitorEx.swift, visibleRectPaddedByOuterGaps), so
+# the right value is (bar height) - (that display's menu bar strip):
+#   Built-in Retina Display: visibleFrame already starts at y=32, because the
+#     notch strip is reserved even while the menu bar is auto-hidden -> 40-32=8
+#   T22C301: no notch and the menu bar is auto-hidden, so visibleFrame == frame
+#     -> 40-0=40
+# A single constant of 40 was therefore correct on the external display but
+# pushed tiled windows to y=72 on the built-in: 32pt of dead space under the bar.
+# Last element = fallback for a display matching no pattern (assumes no strip).
+#
+# NOTE: floating windows are NOT affected -- they are laid out from
+# `visibleRect` and only translated proportionally between monitors
+# (Sources/AppBundle/layout/layoutRecursive.swift, layoutFloatingWindow).
+# Tiled windows, and windows put into `fullscreen`, are.
+gaps.outer.top =        [{ monitor."Built-in Retina Display" = 8 }, { monitor."T22C301" = 40 }, 40]
 gaps.outer.right =      0
 
 # 'main' binding mode declaration
