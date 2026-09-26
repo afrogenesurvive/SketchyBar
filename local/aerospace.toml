@@ -91,7 +91,8 @@ gaps.outer.bottom =     0
 # keeps outer gaps -- only `--no-outer-gaps` drops them -- so this covers
 # fullscreen windows too. Raising the bar's y_offset (see
 # plugins/native_bar_toggle.sh) only widens the gap, never overlaps.
-# See: https://nikitabobko.github.io/AeroSpace/guide#gaps
+# See: https://nikitabobko.github.io/AeroSpace/guide#default-config -- the guide
+# has no `#gaps` anchor; the gaps keys come from its default config section
 #
 # The gap is added to `NSScreen.visibleFrame`, NOT to the screen edge
 # (Sources/AppBundle/model/MonitorEx.swift, visibleRectPaddedByOuterGaps), so
